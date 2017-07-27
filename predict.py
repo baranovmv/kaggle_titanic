@@ -15,20 +15,27 @@ import argparse
 FILL_MEDIAN = True
 
 #######################################################################################################################
+
+def prep_df(X_in):
+    sexnum = {'male':0, 'female':1}
+    embarked = {'S':0, 'C':1, 'Q':2, np.nan: np.nan}
+
+    X_out = X_in.loc[:,['Pclass', 'Age', 'SibSp', 'Parch', 'Fare']]
+    X_out['EmbarkedNum'] = X_in['Embarked'].replace(embarked)
+    X_out['SexNum'] = X_in['Sex'].replace(sexnum)
+
+    X_out['Age'] = X_out['Age'].fillna(X_out['Age'].mean() if FILL_MEDIAN else -1)
+    X_out['EmbarkedNum'] = X_out['EmbarkedNum'].fillna(X_out['EmbarkedNum'].mean() if FILL_MEDIAN else -1)
+    X_out['SexNum'] = X_out['SexNum'].fillna(X_out['SexNum'].mean() if FILL_MEDIAN else -1)
+    X_out['Pclass'] = X_out['Pclass'].fillna(X_out['Pclass'].mean() if FILL_MEDIAN else -1)
+
+    return X_out
+
+#######################################################################################################################
 train = pd.read_csv('train.csv', index_col=0)
 Y = train.loc[:,['Survived']]
 
-sexnum = {'male':0, 'female':1}
-embarked = {'S':0, 'C':1, 'Q':2, np.nan: np.nan}
-
-X = train.loc[:,['Pclass', 'Age', 'SibSp', 'Parch', 'Fare']]
-X['EmbarkedNum'] = train['Embarked'].replace(embarked)
-X['SexNum'] = train['Sex'].replace(sexnum)
-
-X['Age'] = X['Age'].fillna(X['Age'].mean() if FILL_MEDIAN else -1)
-X['EmbarkedNum'] = X['EmbarkedNum'].fillna(X['EmbarkedNum'].mean() if FILL_MEDIAN else -1)
-X['SexNum'] = X['SexNum'].fillna(X['SexNum'].mean() if FILL_MEDIAN else -1)
-X['Pclass'] = X['Pclass'].fillna(X['Pclass'].mean() if FILL_MEDIAN else -1)
+X = prep_df(train)
 
 train_ind = np.random.rand(len(X)) < 0.8
 test_ind = ~train_ind
@@ -52,7 +59,7 @@ test_y = Y[test_ind]
 # pred_train_y = clf.predict(train_x)
 # pred_test_y = clf.predict(test_x)
 
-model = CatBoostClassifier(iterations=30, depth=4, learning_rate=0.01, loss_function='Logloss', verbose=True)
+model = CatBoostClassifier(iterations=30, depth=4, learning_rate=0.01, loss_function='Logloss', verbose=False)
 model.fit(train_x, np.ravel(train_y.values), verbose=True)
 pred_train_y = model.predict(train_x)
 pred_test_y = model.predict(test_x)
@@ -63,3 +70,7 @@ f1_test = f1_score(test_y, pred_test_y)
 print("Training set accuracy: {:.2%}".format(accuracy_train))
 print("Test set accuracy: {:.2%}".format(accuracy_test))
 print("Test set F1: {:.2%}".format(f1_test))
+
+#######################################################################################################################
+test = pd.read_csv('test.csv', index_col=0)
+
