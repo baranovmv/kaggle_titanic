@@ -19,16 +19,13 @@ FILL_MEDIAN = True
 def prep_df(X_in):
     sexnum = {'male':0, 'female':1}
     embarked = {'S':0, 'C':1, 'Q':2, np.nan: np.nan}
-
     X_out = X_in.loc[:,['Pclass', 'Age', 'SibSp', 'Parch', 'Fare']]
     X_out['EmbarkedNum'] = X_in['Embarked'].replace(embarked)
     X_out['SexNum'] = X_in['Sex'].replace(sexnum)
-
     X_out['Age'] = X_out['Age'].fillna(X_out['Age'].mean() if FILL_MEDIAN else -1)
     X_out['EmbarkedNum'] = X_out['EmbarkedNum'].fillna(X_out['EmbarkedNum'].mean() if FILL_MEDIAN else -1)
     X_out['SexNum'] = X_out['SexNum'].fillna(X_out['SexNum'].mean() if FILL_MEDIAN else -1)
     X_out['Pclass'] = X_out['Pclass'].fillna(X_out['Pclass'].mean() if FILL_MEDIAN else -1)
-
     return X_out
 
 #######################################################################################################################
@@ -73,4 +70,9 @@ print("Test set F1: {:.2%}".format(f1_test))
 
 #######################################################################################################################
 test = pd.read_csv('test.csv', index_col=0)
+test_x = prep_df(test)
 
+pred_test_y = model.predict(test_x)
+pred_test_y_df = pd.DataFrame(data=pred_test_y, index=test.index, columns=['Survived'])
+pred_test_y_df['Survived'] = pred_test_y_df['Survived'].astype('int')
+pred_test_y_df.to_csv('submission.csv')
