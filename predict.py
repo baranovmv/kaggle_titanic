@@ -1,6 +1,5 @@
 #!env python3
 
-import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn import svm
@@ -11,6 +10,7 @@ import pandas as pd
 import sys
 from optparse import OptionParser
 import argparse
+import re
 
 FILL_MEDIAN = True
 
@@ -22,10 +22,22 @@ def prep_df(X_in):
     X_out = X_in.loc[:,['Pclass', 'Age', 'SibSp', 'Parch', 'Fare']]
     X_out['EmbarkedNum'] = X_in['Embarked'].replace(embarked)
     X_out['SexNum'] = X_in['Sex'].replace(sexnum)
-    X_out['Age'] = X_out['Age'].fillna(X_out['Age'].mean() if FILL_MEDIAN else -1)
-    X_out['EmbarkedNum'] = X_out['EmbarkedNum'].fillna(X_out['EmbarkedNum'].mean() if FILL_MEDIAN else -1)
-    X_out['SexNum'] = X_out['SexNum'].fillna(X_out['SexNum'].mean() if FILL_MEDIAN else -1)
-    X_out['Pclass'] = X_out['Pclass'].fillna(X_out['Pclass'].mean() if FILL_MEDIAN else -1)
+    X_out['Age'] = X_out['Age'].fillna(X_out['Age'].median() if FILL_MEDIAN else -1)
+    X_out['EmbarkedNum'] = X_out['EmbarkedNum'].fillna(X_out['EmbarkedNum'].median() if FILL_MEDIAN else -1)
+    X_out['SexNum'] = X_out['SexNum'].fillna(X_out['SexNum'].median() if FILL_MEDIAN else -1)
+    X_out['Pclass'] = X_out['Pclass'].fillna(X_out['Pclass'].median() if FILL_MEDIAN else -1)
+
+    nms = [r'.*\sMr\.\s.*',r'.*\sMrs\.\s.*', r'.*\sMiss\.\s.*', r'.*\sMaster\.\s.*',\
+    r'.*\sDon\.\s.*', r'.*\sRev\.\s.*', r'.*\sDr\.\s.*', r'.*\sMme\.\s.*', r'.*\sMs\.\s.*',\
+    r'.*\sMajor\.\s.*', r'.*\sLady\.\s.*', r'.*\sSir\.\s.*', r'.*\sMlle\.\s.*', r'.*\sCol\.\s.*',\
+    r'.*\sCapt\.\s.*']
+
+    l = [[re.match(r, x) for r in nms] for x in X_in['Name']] 
+    l = [[x != None for x in lt] for lt in l]
+    l = [[x for x,v in enumerate(li) if v] for li in l]
+    l = [x[0] if x != [] else len(nms) for x in l]  
+    X_out['Name'] = l
+
     return X_out
 
 #######################################################################################################################
@@ -46,7 +58,7 @@ test_y = Y[test_ind]
 # You can experiment with many other options here, using the same .fit() and .predict()
 # methods; see http://scikit-learn.org
 # This example uses the current build of XGBoost, from https://github.com/dmlc/xgboost
-# gbm = xgb.XGBClassifier(max_depth=4, n_estimators=200, learning_rate=0.003).fit(train_x, np.ravel(train_y.values))
+# gbm = xgb.XGBClassifier(max_depth=16, n_estimators=60, learning_rate=0.05).fit(train_x, np.ravel(train_y.values))
 # pred_train_y = gbm.predict(train_x)
 # pred_test_y = gbm.predict(test_x)
 
@@ -56,8 +68,9 @@ test_y = Y[test_ind]
 # pred_train_y = clf.predict(train_x)
 # pred_test_y = clf.predict(test_x)
 
-model = CatBoostClassifier(iterations=30, depth=4, learning_rate=0.01, loss_function='Logloss', verbose=False)
-model.fit(train_x, np.ravel(train_y.values), verbose=True)
+model = CatBoostClassifier(iterations=120, depth=16,l2_leaf_reg=4, learning_rate=0.015, loss_function='Logloss',\
+    eval_metric='AUC', verbose=True)
+model.fit(train_x, np.ravel(train_y.values), eval_set=(test_x,np.ravel(test_y)), use_best_model=False, verbose=True)
 pred_train_y = model.predict(train_x)
 pred_test_y = model.predict(test_x)
 
